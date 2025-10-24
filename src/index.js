@@ -248,8 +248,8 @@ bot.on('callback_query', (ctx) => {
     case 'quiz_science':
     case 'quiz_games':
       ctx.answerCbQuery();
-      const category = callbackData.replace('quiz_', '');
-      ctx.editMessageText(`🎯 <b>Викторина: ${getCategoryName(category)}</b>
+      const quizCategory = callbackData.replace('quiz_', '');
+      ctx.editMessageText(`🎯 <b>Викторина: ${getCategoryName(quizCategory)}</b>
 
 Выберите сложность:
 
@@ -260,11 +260,11 @@ bot.on('callback_query', (ctx) => {
         reply_markup: {
           inline_keyboard: [
             [
-              { text: '🟢 Легкая', callback_data: `quiz_start_${category}_easy` },
-              { text: '🟡 Средняя', callback_data: `quiz_start_${category}_medium` }
+              { text: '🟢 Легкая', callback_data: `quiz_start_${quizCategory}_easy` },
+              { text: '🟡 Средняя', callback_data: `quiz_start_${quizCategory}_medium` }
             ],
             [
-              { text: '🔴 Сложная', callback_data: `quiz_start_${category}_hard` }
+              { text: '🔴 Сложная', callback_data: `quiz_start_${quizCategory}_hard` }
             ],
             [
               { text: '🔙 К викторинам', callback_data: 'quiz_menu' }
