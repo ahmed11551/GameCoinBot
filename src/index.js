@@ -1096,7 +1096,7 @@ ${slotsResult.reels.join(' ')}
 👋 <b>Добро пожаловать в службу поддержки!</b>
 
 📞 <b>Способы связи:</b>
-• 💬 Telegram: @support_username
+• 💬 Telegram: @new_coinmaster_game_bot
 • 📧 Email: support@coinmaster.com
 • 🌐 Сайт: coinmaster.com/support
 
@@ -1184,7 +1184,7 @@ ${slotsResult.reels.join(' ')}
 • Технические проблемы
 
 📞 <b>Контакты:</b>
-• Telegram: @support_username
+• Telegram: @new_coinmaster_game_bot
 • Email: support@coinmaster.com
 
 ⏰ <b>Время ответа:</b> До 24 часов
