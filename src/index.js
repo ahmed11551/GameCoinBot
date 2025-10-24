@@ -9,6 +9,10 @@ const clickerModule = require('./games/clicker');
 const achievementsModule = require('./games/achievements');
 const questsModule = require('./games/quests');
 
+// Импорт сервисов
+const monetizationService = require('./services/MonetizationService');
+const referralService = require('./services/ReferralService');
+
 const app = express();
 const bot = new Telegraf(process.env.BOT_TOKEN || '8479237154:AAGPnOMzFdHcOi6A5Y-gPxQnq2q7BHJULq8');
 
@@ -92,14 +96,40 @@ function addGems(userId, amount) {
 bot.start((ctx) => {
   const user = getUserData(ctx.from.id);
   
-  const welcomeText = `🎮 <b>Добро пожаловать в CoinMaster!</b>
+  // Проверяем реферальную ссылку
+  const startParam = ctx.message?.text?.split(' ')[1];
+  const referralInfo = referralService.parseStartCommand(startParam);
+  
+  let welcomeText = `🎮 <b>Добро пожаловать в CoinMaster!</b>
 
 👋 Привет, ${ctx.from.first_name || 'Игрок'}!
 
 💰 <b>Ваш баланс:</b>
 🪙 Монеты: ${user.coins}
 💎 Драгоценные камни: ${user.gems}
-⭐ Уровень: ${user.level}
+⭐ Уровень: ${user.level}`;
+
+  // Если это реферальная регистрация
+  if (referralInfo.isReferral && !user.referredBy) {
+    const referralResult = referralService.registerReferral(ctx.from.id, referralInfo.referralCode);
+    
+    if (referralResult.success) {
+      // Выдаем награды
+      addCoins(ctx.from.id, referralResult.referee.reward.coins);
+      addGems(ctx.from.id, referralResult.referee.reward.gems);
+      
+      welcomeText += `
+
+🎉 <b>Реферальный бонус!</b>
+Вы зарегистрированы по реферальной ссылке!
+💎 Получено: ${referralResult.referee.reward.gems} драгоценных камней
+🪙 Получено: ${referralResult.referee.reward.coins} монет`;
+      
+      user.referredBy = referralResult.referrer.userId;
+    }
+  }
+
+  welcomeText += `
 
 🎯 <b>Доступные игры:</b>
 • Викторины - проверьте свои знания
@@ -664,6 +694,10 @@ ${nextQuestion.question}`, {
               { text: '📋 Квесты', callback_data: 'quests' }
             ],
             [
+              { text: '💎 Купить драгоценные камни', callback_data: 'buy_gems_stars' },
+              { text: '👥 Реферальная система', callback_data: 'referral_system' }
+            ],
+            [
               { text: '❓ Поддержка', callback_data: 'support' }
             ]
           ]
@@ -1023,9 +1057,12 @@ ${slotsResult.reels.join(' ')}
 🛍️ <b>Товары:</b>
 
 💎 <b>Драгоценные камни</b>
-• 10 драгоценных камней - 100 монет
-• 50 драгоценных камней - 450 монет
-• 100 драгоценных камней - 800 монет
+• Обмен монет на драгоценные камни
+• Покупка за Telegram Stars
+
+🪙 <b>Монеты</b>
+• Покупка монет за драгоценные камни
+• Разные пакеты с бонусами
 
 🎁 <b>Бонусы</b>
 • Двойной доход на 1 час - 50 драгоценных камней
@@ -1039,11 +1076,12 @@ ${slotsResult.reels.join(' ')}
         reply_markup: {
           inline_keyboard: [
             [
-              { text: '💎 Купить драгоценные камни', callback_data: 'buy_gems' },
-              { text: '🎁 Купить бонусы', callback_data: 'buy_bonuses' }
+              { text: '💎 Драгоценные камни', callback_data: 'buy_gems' },
+              { text: '🪙 Монеты', callback_data: 'buy_coins' }
             ],
             [
-              { text: '⭐ Премиум подписка', callback_data: 'buy_premium' }
+              { text: '🎁 Бонусы', callback_data: 'buy_bonuses' },
+              { text: '⭐ Премиум', callback_data: 'buy_premium' }
             ],
             [
               { text: '🔙 Главное меню', callback_data: 'main_menu' }
@@ -1245,14 +1283,69 @@ ${slotsResult.reels.join(' ')}
       });
       break;
       
-    // Покупка драгоценных камней
-    case 'buy_gems':
+    // Покупка драгоценных камней за Telegram Stars
+    case 'buy_gems_stars':
       ctx.answerCbQuery();
       ctx.editMessageText(`💎 <b>Покупка драгоценных камней</b>
 
+⭐ <b>Оплата через Telegram Stars</b>
+
+💎 <b>Доступные пакеты:</b>
+
+💎 <b>Малый пакет</b>
+• 10 драгоценных камней
+• Цена: 100 ⭐ Telegram Stars
+• Бонус: 0 драгоценных камней
+
+💎 <b>Средний пакет</b>
+• 50 драгоценных камней
+• Цена: 450 ⭐ Telegram Stars
+• Бонус: +5 драгоценных камней
+
+💎 <b>Большой пакет</b>
+• 100 драгоценных камней
+• Цена: 800 ⭐ Telegram Stars
+• Бонус: +15 драгоценных камней
+
+💎 <b>Мега пакет</b>
+• 250 драгоценных камней
+• Цена: 1800 ⭐ Telegram Stars
+• Бонус: +50 драгоценных камней
+
+💡 <b>Как купить:</b>
+1. Выберите пакет
+2. Оплатите через Telegram Stars
+3. Получите драгоценные камни мгновенно!`, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '💎 Малый (100⭐)', callback_data: 'buy_gems_stars_small' },
+              { text: '💎 Средний (450⭐)', callback_data: 'buy_gems_stars_medium' }
+            ],
+            [
+              { text: '💎 Большой (800⭐)', callback_data: 'buy_gems_stars_large' },
+              { text: '💎 Мега (1800⭐)', callback_data: 'buy_gems_stars_mega' }
+            ],
+            [
+              { text: '🔙 Главное меню', callback_data: 'main_menu' }
+            ]
+          ]
+        }
+      });
+      break;
+      
+    // Покупка драгоценных камней за монеты (старая система)
+    case 'buy_gems':
+      ctx.answerCbQuery();
+      ctx.editMessageText(`💎 <b>Обмен монет на драгоценные камни</b>
+
 💰 <b>Ваш баланс:</b> ${user.coins} монет
 
-💎 <b>Пакеты драгоценных камней:</b>
+💎 <b>Курс обмена:</b>
+• 1 драгоценный камень = 10 монет
+
+💎 <b>Пакеты:</b>
 
 💎 <b>Базовый пакет</b>
 • 10 драгоценных камней - 100 монет
@@ -1622,8 +1715,123 @@ ${slotsResult.reels.join(' ')}
       });
       break;
       
-    default:
-      ctx.answerCbQuery('🚧 Функция в разработке!');
+    // Реферальная система
+    case 'referral_system':
+      ctx.answerCbQuery();
+      const referralStats = referralService.getReferralStats(ctx.from.id);
+      const referralLink = referralService.getReferralLink(ctx.from.id);
+      
+      ctx.editMessageText(`👥 <b>Реферальная система</b>
+
+🔗 <b>Ваша реферальная ссылка:</b>
+<code>${referralLink}</code>
+
+📊 <b>Ваша статистика:</b>
+• Рефералов привлечено: ${referralStats.referralCount}
+• Заработано драгоценных камней: ${referralStats.totalEarnings.gems}
+• Заработано монет: ${referralStats.totalEarnings.coins}
+• Достижений: ${referralStats.milestones.length}
+
+🎁 <b>Награды за рефералов:</b>
+• За каждого реферала: 5💎 + 100🪙
+• Достижения за количество рефералов
+
+🏆 <b>Достижения:</b>
+• 5 рефералов: 25💎 + 500🪙
+• 10 рефералов: 50💎 + 1000🪙
+• 25 рефералов: 100💎 + 2500🪙
+• 50 рефералов: 200💎 + 5000🪙
+
+💡 <b>Как работает:</b>
+1. Поделитесь ссылкой с друзьями
+2. Они регистрируются по вашей ссылке
+3. Вы получаете награды за каждого реферала!`, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '📋 Поделиться ссылкой', url: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=🎮 Присоединяйся к CoinMaster - игровому боту с внутренней валютой!` }
+            ],
+            [
+              { text: '🏆 Топ рекрутеров', callback_data: 'top_recruiters' },
+              { text: '📊 Мои рефералы', callback_data: 'my_referrals' }
+            ],
+            [
+              { text: '🔙 Главное меню', callback_data: 'main_menu' }
+            ]
+          ]
+        }
+      });
+      break;
+      
+    // Топ рекрутеров
+    case 'top_recruiters':
+      ctx.answerCbQuery();
+      const topRecruiters = referralService.getTopRecruiters(10);
+      
+      let topText = `🏆 <b>Топ рекрутеров</b>
+
+📊 <b>Лучшие по количеству рефералов:</b>\n`;
+      
+      if (topRecruiters.length === 0) {
+        topText += 'Пока нет рекрутеров. Станьте первым!';
+      } else {
+        topRecruiters.forEach((recruiter, index) => {
+          const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '👤';
+          topText += `${medal} ${index + 1}. Рефералов: ${recruiter.referralCount}\n`;
+          topText += `   💎 Заработано: ${recruiter.totalEarnings.gems}\n`;
+          topText += `   🪙 Заработано: ${recruiter.totalEarnings.coins}\n\n`;
+        });
+      }
+      
+      ctx.editMessageText(topText, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '🔙 К реферальной системе', callback_data: 'referral_system' }
+            ]
+          ]
+        }
+      });
+      break;
+      
+    // Мои рефералы
+    case 'my_referrals':
+      ctx.answerCbQuery();
+      const myReferrals = referralService.getReferralStats(ctx.from.id);
+      
+      let referralsText = `👥 <b>Мои рефералы</b>
+
+📊 <b>Общая статистика:</b>
+• Всего рефералов: ${myReferrals.referralCount}
+• Заработано драгоценных камней: ${myReferrals.totalEarnings.gems}
+• Заработано монет: ${myReferrals.totalEarnings.coins}
+
+🎯 <b>Достижения:</b>`;
+      
+      if (myReferrals.milestones.length === 0) {
+        referralsText += '\nПока нет достижений. Привлекайте больше рефералов!';
+      } else {
+        myReferrals.milestones.forEach(milestone => {
+          referralsText += `\n✅ ${milestone} рефералов`;
+        });
+      }
+      
+      referralsText += `\n\n🔗 <b>Ваша ссылка:</b>
+<code>${referralService.getReferralLink(ctx.from.id)}</code>`;
+      
+      ctx.editMessageText(referralsText, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '🔙 К реферальной системе', callback_data: 'referral_system' }
+            ]
+          ]
+        }
+      });
+      break;
   }
 });
 
