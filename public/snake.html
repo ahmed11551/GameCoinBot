@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Змейка - CoinMaster</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+
+        .game-header {
+            margin-bottom: 20px;
+        }
+
+        .game-header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .score-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .score-item {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 10px;
+            flex: 1;
+            margin: 0 5px;
+        }
+
+        .score-item .value {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .score-item .label {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        #gameCanvas {
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s ease;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .control-btn:active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .game-over {
+            background: rgba(255, 0, 0, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .game-over h2 {
+            margin-bottom: 10px;
+            color: #ff6b6b;
+        }
+
+        .rewards {
+            background: rgba(0, 255, 0, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .rewards h3 {
+            margin-bottom: 10px;
+            color: #4CAF50;
+        }
+
+        .reward-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .instructions {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 480px) {
+            .game-container {
+                padding: 15px;
+            }
+            
+            #gameCanvas {
+                width: 100%;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>🐍 Змейка</h1>
+            <p>Собирайте еду и избегайте столкновений!</p>
+        </div>
+
+        <div class="score-info">
+            <div class="score-item">
+                <div class="value" id="score">0</div>
+                <div class="label">Счет</div>
+            </div>
+            <div class="score-item">
+                <div class="value" id="highScore">0</div>
+                <div class="label">Рекорд</div>
+            </div>
+            <div class="score-item">
+                <div class="value" id="length">1</div>
+                <div class="label">Длина</div>
+            </div>
+        </div>
+
+        <canvas id="gameCanvas" width="300" height="300"></canvas>
+
+        <div class="controls">
+            <button class="control-btn" id="startBtn" onclick="startGame()">▶️ Начать</button>
+            <button class="control-btn" id="pauseBtn" onclick="pauseGame()" disabled>⏸️ Пауза</button>
+            <button class="control-btn" id="restartBtn" onclick="restartGame()">🔄 Заново</button>
+        </div>
+
+        <div class="game-over" id="gameOver">
+            <h2>🎮 Игра окончена!</h2>
+            <p>Ваш счет: <span id="finalScore">0</span></p>
+            <p>Длина змейки: <span id="finalLength">1</span></p>
+        </div>
+
+        <div class="rewards" id="rewards">
+            <h3>🎁 Награды!</h3>
+            <div class="reward-item">
+                <span>🪙 Монеты:</span>
+                <span id="coinsReward">0</span>
+            </div>
+            <div class="reward-item">
+                <span>💎 Драгоценные камни:</span>
+                <span id="gemsReward">0</span>
+            </div>
+            <div class="reward-item">
+                <span>⭐ Опыт:</span>
+                <span id="expReward">0</span>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <p><strong>Управление:</strong></p>
+            <p>• Используйте стрелки на клавиатуре</p>
+            <p>• Или кнопки на экране</p>
+            <p>• Собирайте красные точки для роста</p>
+            <p>• Избегайте столкновений со стенами и собой</p>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Telegram Web App
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        // Получение параметров из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session');
+        const userId = urlParams.get('user');
+
+        // Игровые переменные
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        let snake = [{ x: 10, y: 10 }];
+        let food = {};
+        let dx = 0;
+        let dy = 0;
+        let score = 0;
+        let highScore = localStorage.getItem('snakeHighScore') || 0;
+        let gameRunning = false;
+        let gamePaused = false;
+
+        // Инициализация игры
+        function initGame() {
+            document.getElementById('highScore').textContent = highScore;
+            generateFood();
+            drawGame();
+            
+            // Обработчики клавиш
+            document.addEventListener('keydown', handleKeyPress);
+            
+            // Обработчики касаний для мобильных устройств
+            canvas.addEventListener('touchstart', handleTouch);
+        }
+
+        // Генерация еды
+        function generateFood() {
+            food = {
+                x: Math.floor(Math.random() * tileCount),
+                y: Math.floor(Math.random() * tileCount)
+            };
+            
+            // Проверяем, что еда не появилась на змейке
+            for (let segment of snake) {
+                if (segment.x === food.x && segment.y === food.y) {
+                    generateFood();
+                    return;
+                }
+            }
+        }
+
+        // Отрисовка игры
+        function drawGame() {
+            // Очистка canvas
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Отрисовка змейки
+            ctx.fillStyle = '#4CAF50';
+            for (let segment of snake) {
+                ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 2, gridSize - 2);
+            }
+
+            // Отрисовка головы змейки
+            ctx.fillStyle = '#2E7D32';
+            ctx.fillRect(snake[0].x * gridSize, snake[0].y * gridSize, gridSize - 2, gridSize - 2);
+
+            // Отрисовка еды
+            ctx.fillStyle = '#F44336';
+            ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 2, gridSize - 2);
+        }
+
+        // Обновление игры
+        function updateGame() {
+            if (!gameRunning || gamePaused) return;
+
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+            // Проверка столкновения со стенами
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+                gameOver();
+                return;
+            }
+
+            // Проверка столкновения с собой
+            for (let segment of snake) {
+                if (head.x === segment.x && head.y === segment.y) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            snake.unshift(head);
+
+            // Проверка поедания еды
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                document.getElementById('score').textContent = score;
+                document.getElementById('length').textContent = snake.length;
+                generateFood();
+            } else {
+                snake.pop();
+            }
+
+            drawGame();
+        }
+
+        // Обработка нажатий клавиш
+        function handleKeyPress(e) {
+            if (!gameRunning) return;
+
+            switch (e.key) {
+                case 'ArrowUp':
+                    if (dy !== 1) {
+                        dx = 0;
+                        dy = -1;
+                    }
+                    break;
+                case 'ArrowDown':
+                    if (dy !== -1) {
+                        dx = 0;
+                        dy = 1;
+                    }
+                    break;
+                case 'ArrowLeft':
+                    if (dx !== 1) {
+                        dx = -1;
+                        dy = 0;
+                    }
+                    break;
+                case 'ArrowRight':
+                    if (dx !== -1) {
+                        dx = 1;
+                        dy = 0;
+                    }
+                    break;
+            }
+        }
+
+        // Обработка касаний
+        function handleTouch(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+
+            if (!gameRunning) return;
+
+            if (x < centerX && y < centerY) {
+                // Верхний левый - вверх
+                if (dy !== 1) {
+                    dx = 0;
+                    dy = -1;
+                }
+            } else if (x > centerX && y < centerY) {
+                // Верхний правый - вправо
+                if (dx !== -1) {
+                    dx = 1;
+                    dy = 0;
+                }
+            } else if (x < centerX && y > centerY) {
+                // Нижний левый - влево
+                if (dx !== 1) {
+                    dx = -1;
+                    dy = 0;
+                }
+            } else if (x > centerX && y > centerY) {
+                // Нижний правый - вниз
+                if (dy !== -1) {
+                    dx = 0;
+                    dy = 1;
+                }
+            }
+        }
+
+        // Начало игры
+        function startGame() {
+            gameRunning = true;
+            gamePaused = false;
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('pauseBtn').disabled = false;
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('rewards').style.display = 'none';
+        }
+
+        // Пауза игры
+        function pauseGame() {
+            gamePaused = !gamePaused;
+            document.getElementById('pauseBtn').textContent = gamePaused ? '▶️ Продолжить' : '⏸️ Пауза';
+        }
+
+        // Перезапуск игры
+        function restartGame() {
+            snake = [{ x: 10, y: 10 }];
+            dx = 0;
+            dy = 0;
+            score = 0;
+            gameRunning = false;
+            gamePaused = false;
+            
+            document.getElementById('score').textContent = score;
+            document.getElementById('length').textContent = snake.length;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('pauseBtn').textContent = '⏸️ Пауза';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('rewards').style.display = 'none';
+            
+            generateFood();
+            drawGame();
+        }
+
+        // Конец игры
+        function gameOver() {
+            gameRunning = false;
+            gamePaused = false;
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('pauseBtn').disabled = true;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalLength').textContent = snake.length;
+            document.getElementById('gameOver').style.display = 'block';
+
+            // Обновление рекорда
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('snakeHighScore', highScore);
+                document.getElementById('highScore').textContent = highScore;
+            }
+
+            // Расчет наград
+            const rewards = calculateRewards(score, snake.length);
+            document.getElementById('coinsReward').textContent = rewards.coins;
+            document.getElementById('gemsReward').textContent = rewards.gems;
+            document.getElementById('expReward').textContent = rewards.experience;
+            document.getElementById('rewards').style.display = 'block';
+
+            // Отправка результата в бот
+            sendGameResult(score, snake.length, rewards);
+        }
+
+        // Расчет наград
+        function calculateRewards(score, length) {
+            const baseCoins = Math.floor(score / 10);
+            const baseGems = Math.floor(length / 5);
+            const baseExp = Math.floor(score / 20);
+
+            return {
+                coins: Math.max(baseCoins, 10),
+                gems: Math.max(baseGems, 1),
+                experience: Math.max(baseExp, 5)
+            };
+        }
+
+        // Отправка результата в бот
+        function sendGameResult(score, length, rewards) {
+            // В реальном приложении здесь был бы запрос к API бота
+            console.log('Game result:', { 
+                gameId: 'snake', 
+                score, 
+                length, 
+                rewards,
+                sessionId,
+                userId 
+            });
+        }
+
+        // Запуск игры
+        setInterval(updateGame, 150);
+        initGame();
+    </script>
+</body>
+</html>

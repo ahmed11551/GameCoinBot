@@ -8,6 +8,7 @@ const casinoModule = require('./games/casino');
 const clickerModule = require('./games/clicker');
 const achievementsModule = require('./games/achievements');
 const questsModule = require('./games/quests');
+const miniAppGamesModule = require('./games/miniAppGames');
 
 // Импорт сервисов
 const monetizationService = require('./services/MonetizationService');
@@ -691,6 +692,9 @@ ${nextQuestion.question}`, {
             ],
             [
               { text: '👆 Кликер', callback_data: 'clicker_menu' },
+              { text: '🎮 Mini App игры', callback_data: 'mini_app_games' }
+            ],
+            [
               { text: '🏆 Турниры', callback_data: 'tournaments' }
             ],
             [
@@ -1874,8 +1878,205 @@ ${slotsResult.reels.join(' ')}
       });
       break;
       
-    // Правовая информация
-    case 'legal_info':
+    // Mini App игры
+    case 'mini_app_games':
+      ctx.answerCbQuery();
+      const availableGames = miniAppGamesModule.getAvailableGames(ctx.from.id);
+      const tournaments = miniAppGamesModule.getTournaments();
+      
+      let gamesText = `🎮 <b>Mini App игры</b>
+
+💰 <b>Ваш баланс:</b> ${user.coins} монет, ${user.gems} драгоценных камней
+
+🎯 <b>Доступные игры:</b>
+
+`;
+
+      if (availableGames.length === 0) {
+        gamesText += `❌ <b>Нет доступных игр</b>
+Повысьте уровень или заработайте больше монет!`;
+      } else {
+        availableGames.forEach(game => {
+          gamesText += `${game.icon} <b>${game.name}</b>
+• ${game.description}
+• Награда: ${game.rewards.coins.min}-${game.rewards.coins.max} монет
+• Требования: уровень ${game.requirements.level}, ${game.requirements.coins} монет
+
+`;
+        });
+      }
+
+      gamesText += `
+🏆 <b>Турниры:</b>
+`;
+
+      if (tournaments.length === 0) {
+        gamesText += `Пока нет активных турниров`;
+      } else {
+        tournaments.forEach(tournament => {
+          gamesText += `• ${tournament.name}: ${tournament.prizePool} монет (взнос: ${tournament.entryFee})
+`;
+        });
+      }
+
+      gamesText += `
+💡 <b>Как играть:</b>
+1. Выберите игру
+2. Откроется Mini App
+3. Играйте и зарабатывайте награды
+4. Результаты автоматически засчитываются!`;
+
+      ctx.editMessageText(gamesText, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '🐍 Змейка', web_app: { url: `${miniAppGamesModule.miniAppGames.config.appUrl}/snake.html?user=${ctx.from.id}` } },
+              { text: '🧩 Тетрис', web_app: { url: `${miniAppGamesModule.miniAppGames.config.appUrl}/tetris.html?user=${ctx.from.id}` } }
+            ],
+            [
+              { text: '🧩 Головоломка', web_app: { url: `${miniAppGamesModule.miniAppGames.config.appUrl}/puzzle.html?user=${ctx.from.id}` } },
+              { text: '🧠 Память', web_app: { url: `${miniAppGamesModule.miniAppGames.config.appUrl}/memory.html?user=${ctx.from.id}` } }
+            ],
+            [
+              { text: '🏎️ Гонки', web_app: { url: `${miniAppGamesModule.miniAppGames.config.appUrl}/racing.html?user=${ctx.from.id}` } },
+              { text: '🎮 Аркада', web_app: { url: `${miniAppGamesModule.miniAppGames.config.appUrl}/arcade.html?user=${ctx.from.id}` } }
+            ],
+            [
+              { text: '🏆 Турниры Mini App', callback_data: 'mini_app_tournaments' },
+              { text: '📊 Статистика игр', callback_data: 'mini_app_stats' }
+            ],
+            [
+              { text: '🔙 Главное меню', callback_data: 'main_menu' }
+            ]
+          ]
+        }
+      });
+      break;
+      
+    // Турниры Mini App игр
+    case 'mini_app_tournaments':
+      ctx.answerCbQuery();
+      const miniAppTournaments = miniAppGamesModule.getTournaments();
+      
+      let tournamentsText = `🏆 <b>Турниры Mini App игр</b>
+
+💰 <b>Ваш баланс:</b> ${user.coins} монет
+
+`;
+
+      if (miniAppTournaments.length === 0) {
+        tournamentsText += `❌ <b>Нет активных турниров</b>
+Турниры появляются регулярно, следите за обновлениями!`;
+      } else {
+        miniAppTournaments.forEach(tournament => {
+          const canJoin = user.coins >= tournament.entryFee && tournament.participants < tournament.maxParticipants;
+          tournamentsText += `🎮 <b>${tournament.name}</b>
+• Игра: ${tournament.game}
+• Взнос: ${tournament.entryFee} монет
+• Призовой фонд: ${tournament.prizePool} монет
+• Участников: ${tournament.participants}/${tournament.maxParticipants}
+• Статус: ${tournament.status}
+
+`;
+        });
+      }
+
+      ctx.editMessageText(tournamentsText, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            ...miniAppTournaments.map(tournament => [
+              { 
+                text: `🏆 ${tournament.name}`, 
+                callback_data: `join_mini_tournament_${tournament.id}` 
+              }
+            ]),
+            [
+              { text: '🔙 К Mini App играм', callback_data: 'mini_app_games' }
+            ]
+          ]
+        }
+      });
+      break;
+      
+    // Статистика Mini App игр
+    case 'mini_app_stats':
+      ctx.answerCbQuery();
+      const gameStats = miniAppGamesModule.getUserGameStats(ctx.from.id);
+      
+      let statsText = `📊 <b>Статистика Mini App игр</b>
+
+🎮 <b>Ваши результаты:</b>
+
+`;
+
+      if (Object.keys(gameStats).length === 0) {
+        statsText += `❌ <b>Вы еще не играли в Mini App игры</b>
+Начните играть, чтобы увидеть статистику!`;
+      } else {
+        Object.entries(gameStats).forEach(([gameId, stats]) => {
+          const game = miniAppGamesModule.miniAppGames.games.find(g => g.id === gameId);
+          if (game) {
+            statsText += `${game.icon} <b>${game.name}</b>
+• Игр сыграно: ${stats.gamesPlayed}
+• Лучший счет: ${stats.bestScore}
+• Общий счет: ${stats.totalScore}
+• Лучший уровень: ${stats.bestLevel}
+
+`;
+          }
+        });
+      }
+
+      ctx.editMessageText(statsText, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '🔙 К Mini App играм', callback_data: 'mini_app_games' }
+            ]
+          ]
+        }
+      });
+      break;
+      
+    // Участие в турнире Mini App
+    case 'join_mini_tournament':
+      const tournamentId = callbackData.replace('join_mini_tournament_', '');
+      const joinResult = miniAppGamesModule.joinTournament(ctx.from.id, tournamentId);
+      
+      if (joinResult.success) {
+        ctx.answerCbQuery('✅ Вы присоединились к турниру!');
+        ctx.editMessageText(`🏆 <b>Участие в турнире подтверждено!</b>
+
+🎮 <b>${joinResult.tournament.name}</b>
+• Взнос: ${joinResult.entryFee} монет
+• Призовой фонд: ${joinResult.tournament.prizePool} монет
+• Участников: ${joinResult.tournament.participants}/${joinResult.tournament.maxParticipants}
+
+💡 <b>Что дальше:</b>
+1. Играйте в соответствующую игру
+2. Набирайте очки
+3. Побеждайте в турнире!
+
+🎯 <b>Удачи!</b>`, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '🎮 Начать игру', web_app: { url: `${miniAppGamesModule.miniAppGames.config.appUrl}/index.html?user=${ctx.from.id}` } }
+              ],
+              [
+                { text: '🔙 К турнирам', callback_data: 'mini_app_tournaments' }
+              ]
+            ]
+          }
+        });
+      } else {
+        ctx.answerCbQuery(`❌ ${joinResult.error}`);
+      }
+      break;
       ctx.answerCbQuery();
       legalService.showLegalNotice(ctx, 'gamblingDisclaimer');
       break;
