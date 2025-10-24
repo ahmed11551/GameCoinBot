@@ -11,7 +11,6 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "test": "echo \"No tests specified\" && exit 0",
-    "build": "echo \"Build completed\"",
     "quick-start": "node start.js"
   },
   "keywords": ["telegram", "bot", "game", "currency"],
