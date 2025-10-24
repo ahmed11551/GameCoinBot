@@ -12,9 +12,13 @@ const questsModule = require('./games/quests');
 // Импорт сервисов
 const monetizationService = require('./services/MonetizationService');
 const referralService = require('./services/ReferralService');
+const telegramStarsService = require('./services/TelegramStarsService');
 
 const app = express();
 const bot = new Telegraf(process.env.BOT_TOKEN || '8479237154:AAGPnOMzFdHcOi6A5Y-gPxQnq2q7BHJULq8');
+
+// Настройка обработчиков платежей
+telegramStarsService.setupPaymentHandlers(bot);
 
 // Middleware для парсинга JSON
 app.use(express.json());
@@ -1832,6 +1836,42 @@ ${slotsResult.reels.join(' ')}
         }
       });
       break;
+      
+    // Покупка драгоценных камней за Telegram Stars
+    case 'buy_gems_stars_small':
+      telegramStarsService.sendInvoice(ctx, 'gems_small');
+      break;
+      
+    case 'buy_gems_stars_medium':
+      telegramStarsService.sendInvoice(ctx, 'gems_medium');
+      break;
+      
+    case 'buy_gems_stars_large':
+      telegramStarsService.sendInvoice(ctx, 'gems_large');
+      break;
+      
+    case 'buy_gems_stars_mega':
+      telegramStarsService.sendInvoice(ctx, 'gems_mega');
+      break;
+      
+    case 'cancel_payment':
+      ctx.answerCbQuery('Платеж отменен');
+      ctx.editMessageText('💎 <b>Покупка драгоценных камней</b>
+
+Платеж отменен. Вы можете попробовать снова или выбрать другой способ оплаты.', {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '🔙 К покупке драгоценных камней', callback_data: 'buy_gems_stars' }
+            ]
+          ]
+        }
+      });
+      break;
+      
+    default:
+      ctx.answerCbQuery('🚧 Функция в разработке!');
   }
 });
 
