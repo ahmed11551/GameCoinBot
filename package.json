@@ -19,15 +19,8 @@
   "license": "MIT",
   "dependencies": {
     "telegraf": "^4.15.6",
-    "pg": "^8.11.3",
-    "redis": "^4.6.10",
-    "dotenv": "^16.3.1",
-    "node-cron": "^3.0.3",
-    "moment": "^2.29.4",
-    "lodash": "^4.17.21",
-    "uuid": "^9.0.1",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2"
+    "express": "^4.18.2",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2",
